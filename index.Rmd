@@ -1,0 +1,9 @@
+---
+title: "welcome?"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Ja, nå får vi se hvordan dette ser ut. Kanskje det går an å legge inn ett lite regnestykke også her; cos(2) = `r cos(2)`.
