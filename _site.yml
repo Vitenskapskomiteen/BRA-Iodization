@@ -1,0 +1,12 @@
+name: "Exsposura"
+output_dir: "docs"
+navbar:
+  title: "Risk- benefit-assessment of Iodization"
+  left:
+    - text: "Home"
+      href: index.html
+    - text: "Some explanation"
+      href: Exposure.html
+output:
+  html_document:
+    theme: cosmo
