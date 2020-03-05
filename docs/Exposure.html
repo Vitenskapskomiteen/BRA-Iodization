@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
 
 <head>
 
 <meta charset="utf-8" />
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
 
@@ -69,9 +69,7 @@ h6 {
 </style>
 
 
-</head>
 
-<body>
 
 <style type = "text/css">
 .main-container {
@@ -85,7 +83,6 @@ code {
 }
 img {
   max-width:100%;
-  height: auto;
 }
 .tabbed-pane {
   padding-top: 12px;
@@ -190,8 +187,6 @@ $(document).ready(function () {
 });
 </script>
 
-<div class="container-fluid main-container">
-
 <!-- tabsets -->
 
 <style type="text/css">
@@ -236,6 +231,7 @@ $(document).ready(function () {
   border: none;
   display: inline-block;
   border-radius: 4px;
+  background-color: transparent;
 }
 
 .tabset-dropdown > .nav-tabs.nav-tabs-open > li {
@@ -248,20 +244,17 @@ $(document).ready(function () {
 }
 </style>
 
-<script>
-$(document).ready(function () {
-  window.buildTabsets("TOC");
-});
-
-$(document).ready(function () {
-  $('.tabset-dropdown > .nav-tabs > li').click(function () {
-    $(this).parent().toggleClass('nav-tabs-open')
-  });
-});
-</script>
-
 <!-- code folding -->
 
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
 
 
 
@@ -301,24 +294,193 @@ $(document).ready(function () {
 </div>
 
 
-<div id="r-markdown" class="section level2">
-<h2>R Markdown</h2>
-<p>This is an R Markdown document. We’re testing this to figure out how to make pages on a github repo, for general use in VKM.</p>
-<p>When you click the <strong>Knit</strong> button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:</p>
-<pre class="r"><code>summary(cars)</code></pre>
-<pre><code>##      speed           dist       
-##  Min.   : 4.0   Min.   :  2.00  
-##  1st Qu.:12.0   1st Qu.: 26.00  
-##  Median :15.0   Median : 36.00  
-##  Mean   :15.4   Mean   : 42.98  
-##  3rd Qu.:19.0   3rd Qu.: 56.00  
-##  Max.   :25.0   Max.   :120.00</code></pre>
+<div id="risk-benefit-assessment-of-iodization-of-salt-in-norway." class="section level2">
+<h2>Risk benefit assessment of iodization of salt in Norway.</h2>
+<p>This page is meant as a methodological online appendix to the exposure and scenario calculations for the project “Benefit and risk assessment of iodization of household salt and salt used in bread and bakery products”. This page has two purposes; document the approach used in the report and to aid others in understanding and possibly using this approach for their own projects.</p>
+<p>The terms of reference for the project can be found <a href="https://vkm.no/download/18.4965dafe1629d0b5ea58f256/1523625764316/Bestilling%20nytte-%20og%20risikovurdering%20av%20jodberikning.pdf">here</a>. The final report will be linked to <a href="https://vkm.no">here</a></p>
+<p>The Risk-Benefit assessment itself has been scrutinized and approved by the Norwegian Scientific Committee in addition to having been reviewed by three experts outside the project group. This page, however, has been through far less scrutiny and may contain errors.</p>
 </div>
-<div id="including-plots" class="section level2">
-<h2>Including Plots</h2>
-<p>You can also embed plots, for example:</p>
-<p><img src="Exposure_files/figure-html/pressure-1.png" width="672" /></p>
-<p>Note that the <code>echo = FALSE</code> parameter was added to the code chunk to prevent printing of the R code that generated the plot.</p>
+<div id="prerequisites" class="section level2">
+<h2>Prerequisites</h2>
+<p>Some basic understanding of the functioning of R is needed to follow this document. Excellent introductions to the software, as well as the usage of Rstudio is available online.</p>
+<p>To perform this analysis in <code>R</code>, a few packages needs to be installed, minimally the package <code>MCMCglmm</code>.</p>
+<pre><code>## Loading required package: Matrix</code></pre>
+<pre><code>## Loading required package: coda</code></pre>
+<pre><code>## Loading required package: ape</code></pre>
+</div>
+<div id="readingcompiling-the-data" class="section level2">
+<h2>Reading/compiling the data</h2>
+<p>The underlying data for the modelling are either intake data or covariates for the individuals in the survey. The intake data is calculated in the Norwegian Dietary Calculation System (KBS) and consists of daily intakes of iodine through diet (either including or exlucing supplements) and consumption of bread. For Norkost 3 (adults), two reported days are included and for Ungkost (4,9 and 13 year olds) 4 consecutive days are included.</p>
+<p>All surveys are to a certain degree not representative of the population they are used to estimate the intake for. We are interested in the long-term (chronic) intake for the general Norwegian population, but we know that Norkost is slightly unrepresentative in that it has a higher proportion of respondents with a high level of education. We will estimate the effect of this so we can (to a certain degree at least) correct for this unrepresentativeness. If, for instance, highly educated individuals on average have a higher intake of iodine, neglecting to correct for this bias will lead to overestimation of the overall iodine intake for the Norwegian population.</p>
+<p>In addition to level of education we expect iodine intakes to be dependent on sex and age, and include these as covariates in our models. For Ungkost, age and level of education are fixed for each age-group and are not included in the modelling. Only Norkost will be presented to exemplify the approach. Ungkost is in structure similar, but differs in that it has fewer covariates, but more sampled days.</p>
+<p>All intakes and covariates are compiled into a data.frame with a row for each individual-day. So for Norkost 3, with 1787 individuals participating, the data.frame has 3574 rows. Each row as an individual identifier (<code>$ind</code>), <code>$sex</code>, <code>$wgt</code> (weight), <code>$day</code> (a or b), <code>$age</code>, <code>$educ</code> (level of education 0 means some time in college og university, 1 - no studies in college/university), <code>$bread</code> (consumption of bread), <code>$iodine_wS</code> (iodine intake including supplements) and <code>$iodine_woS</code> (iodine without supplements). <code>$iod_y</code> is only a mock variable used for programming purposes.</p>
+</div>
+<div id="a-quick-look-at-the-data-and-a-simple-model." class="section level2">
+<h2>A quick look at the data and a simple model.</h2>
+<p>To get a quick overview of the structure of the data;</p>
+<pre class="r"><code>head(dataNK3)</code></pre>
+<pre><code>##     ind    sex wgt day age educ bread iodine_wS iodine_woS  iod_y
+## 1 11001 female  63   a  60    0  46.0    468.13     468.13 468.13
+## 2 11003   male  82   a  32    0 172.8     46.32      46.32  46.32
+## 3 11005 female  85   a  39    0  60.0     18.88      18.88  18.88
+## 4 11006   male  99   a  63    0 120.0     70.45      70.45  70.45
+## 5 11007   male  78   a  36    0 405.0    134.28     134.28 134.28
+## 6 11008   male 101   a  36    0 142.0    360.03     288.03 288.03</code></pre>
+<p>The main goal of doing mixed models on dietary intake data is to decompose the variance in intakes into variance between individuals and variance within individuals. We are trying to use the surveys to estimate the long-term intakes, and thus ‘remove’ the variance within individuals, i.e. the day-to-day variation. In practice this is done by introducing random effects for individuals. The simplest model, will be this <code>model1 &lt;- MCMCglmm(log(iodine_woS)~1, random=~ind, data=dataNK3)</code></p>
+<p>In this model the mean log iodine intake will be modelled, including a ‘random effect’ for each individual and a residual for each day. Here we have no covariate (the model formula is <code>~1</code>), and have set <code>~ind</code> as random effect.</p>
+<p>Then a summary of this model can be shown.</p>
+<pre class="r"><code>summary(model1)</code></pre>
+<pre><code>## 
+##  Iterations = 3001:12991
+##  Thinning interval  = 10
+##  Sample size  = 1000 
+## 
+##  DIC: 8839.312 
+## 
+##  G-structure:  ~ind
+## 
+##     post.mean l-95% CI u-95% CI eff.samp
+## ind    0.1909   0.1513    0.228    447.4
+## 
+##  R-structure:  ~units
+## 
+##       post.mean l-95% CI u-95% CI eff.samp
+## units    0.5678   0.5263   0.6051    990.5
+## 
+##  Location effects: log(iodine_woS) ~ 1 
+## 
+##             post.mean l-95% CI u-95% CI eff.samp  pMCMC    
+## (Intercept)     4.795    4.763    4.825     1300 &lt;0.001 ***
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
+<p>The three main parts of a model fit are, in MCMCglmm terms, called the <code>G-structure</code>, the <code>R-structure</code> and the <code>Location effects</code>. The first is the estimated variance of the random effects, i.e. to which degree individuals differ among themselves in their usual (log) intake. The <code>R-structure</code> is the residuals, i.e. to which degree individuals varies in intake from day to day. The <code>Location effects</code> deal with the overall mean.</p>
+<p>This is a simple model of daily intakes, and the <code>(Intercept)</code> parameter is estimated to be around 4.8 on a log scale, i.e. approximately 121 µg in daily intakes. It is crucial to understand what this number is; it is not long-term intake for the population, it is the expectation of the log(intake) for any single day. Since intake is skewed, and bounded by 0, the long-term intake will be higher. This is a fundamental aspect of transforming the modelled intake from real to log (as we do here), or by any other power-function (as the Cox-transformation).</p>
+<div id="extracting-a-long-term-intake" class="section level3">
+<h3>Extracting a long-term intake</h3>
+<p>To get at a long-term intake we need to use the estimated variances; one between individuals (estimated to be about 0.19 on the log scale), and the one within individuals (estimated to be about 0.57 on the log scale). From these values one can surmise that most of the variability on the log scale are between individuals, in fact about three times as much (again on a log scale, so they are slightly harder to interpret on the real scale).</p>
+<p>So if we want to ‘simulate’ a new individuals iodine intake, we then use the estimated parameters. Firstly we use the <code>(Intercept)</code>, which is <code>4.796</code>. Then we add a deviation from this, i.e. we sample a new ‘random effect’ using the estimated distribution of random effects. In the example here the <code>ind</code> is approximately 0.19, i.e. individuals are (on the log scale) estimated to differ among eachother following a normal distribution with mean 0 and a variance of 0.19. Drawing one random number from such a normal distribution then yields a ‘simulated’ mean daily intake for a particular individual. Now we have one individual’s expected log intake. Next step is to simulate the realized daily intakes. The model have estimated that the day-to-day variance in intakes is about 0.57. In our approach we set a long-term intake to be over 365 simulated days. The reason why we draw this many days is that we want the long-term intake for each simulated individual on the <strong>real</strong> scale, and since the day-to-day variation is normal on the log-scale, it is not just the exponentiated estimated paramter (the mean of the log of x is not the same as the log of the mean, remember?).</p>
+<p>So if we want the long-term intake predicted by this model fit we need to sample the estimated parameters (the whole thing is Bayesian), then use these parameters to ‘simulate’ individuals (with a drawn ‘random effect’) and draw a large number of days for each simulated individuals. Then we have a set of daily intake on a log scale, and the mean of these on the real scale is thus mean(exp(log_intakes)).</p>
+<p>In <code>R</code> we construct a function that takes a fitted simple model as input (<code>mcmc_fit</code>), and the number of individual (<code>n_ind</code>, default is 100, i.e. if we don’t give a different number when we call this function it will simulate 100), and number of days over which we want the long-term mean (<code>n_days</code>).</p>
+<pre class="r"><code>drawIod &lt;- function(mcmc_fit,n_ind=100,n_days=365){
+  # A quick function used to sample from a fitted MCMCglmm model with no covariates and simple
+  # random effects.
+  xi &lt;- sample(dim(mcmc_fit$Sol)[1],n_ind,replace=T);
+  # This is just a sampled index into the array of estimated parameters in the Bayesian output from the model (X)
+  iod &lt;- array(NA,n_ind)
+  for (ii in 1:n_ind){
+    # Loop over all individuals.
+    # exp(Sampled (intercept) + Randomly drawn Individual level random effect + n_days number of residuals)
+    iod[ii] &lt;- mean(exp(mcmc_fit$Sol[xi[ii]] + rnorm(1,mean=0,sd=sqrt(mcmc_fit$VCV[xi[ii],1])) + 
+                          rnorm(n_days,mean=0,sd=sqrt(mcmc_fit$VCV[xi[ii],2]))))
+  }
+  return(iod)
+}</code></pre>
+<p>So this function(<code>drawIod</code>) can be called to simulated mean intakes for any number of simulated individuals over any number of days. We can calculate the Observed Individual Mean (OIM) of the intake, and see how the distributions compare when simulating the same number of individuals (n=1787) and two days.</p>
+<pre class="r"><code># Calculating the observed individual means.
+oims &lt;- sapply(unique(dataNK3$ind),function(ii){mean(dataNK3[which(dataNK3$ind==ii),]$iodine_woS)});
+# Simulating 1787 individuals, with 2 days each.
+simulated_2days &lt;- drawIod(model1,n_ind=1787,n_days=2);
+plot(density(oims,from=0),xlim=c(0,1000),main=&#39;Iodine intake, mean of 2 days&#39;,xlab=&#39;Mean daily iodine intake [µg]&#39;,lwd=2,yaxt=&#39;n&#39;)
+lines(density(simulated_2days,from=0),col=&#39;grey&#39;,lwd=2);
+legend(&#39;topright&#39;,fill=c(&#39;black&#39;,&#39;grey&#39;),legend=c(&#39;OIMS&#39;,&#39;Simulated&#39;))</code></pre>
+<p><img src="Exposure_files/figure-html/compOims-1.png" width="672" /></p>
+<p>This figure shows a smoothed distribution of the calculated observed individual means (OIMs) and simulated intakes for the same number of individuals over 2 days using the fitted model.</p>
+</div>
+<div id="getting-long-term-intake." class="section level3">
+<h3>Getting long-term intake.</h3>
+<p>The simple model fitted can be used to simulate long-term intake, i.e. over a large number of days (remember that the model is fitted to, and can be used to simulate daily intakes, but we want a mean of many). The figure below shows three distributions of intakes, simulating 10 000 individual means using 1,2,10 and 200 days.</p>
+<pre class="r"><code>sim_days &lt;- sapply(c(1,2,10,200),function(ii){drawIod(model1,n_ind=1e4,n_days=ii)});
+plot(density(sim_days[,1],from=0),xlim=c(0,800),ylim=c(0,0.01),main=&#39;Intakes over 1, 2, 10 and 200 days&#39;,yaxt=&#39;n&#39;,xlab=&#39;Mean daily iodine intake [µg]&#39;)
+for (ii in 2:4){lines(density(sim_days[,ii],from=0),col=rgb(ii/8,ii/8,ii/8))}
+legend(&#39;topright&#39;,legend=c(&#39;1 day&#39;,&#39;2 days&#39;,&#39;10 days&#39;,&#39;200 days&#39;),fill=sapply(1:4,function(ii){rgb(ii/8,ii/8,ii/8)}))</code></pre>
+<p><img src="Exposure_files/figure-html/compnDays-1.png" width="672" /></p>
+<p>We can also quickly look at some percentiles of these simulations. The tails are becoming narrower (as expected). Please note that this is not a particularly good model of the data, and was explicitly made simple for exposition of the usage of MCMCglmm and R to make the estimates.</p>
+<table>
+<thead>
+<tr class="header">
+<th></th>
+<th align="right">5%</th>
+<th align="right">50%</th>
+<th align="right">95%</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1 day</td>
+<td align="right">28</td>
+<td align="right">120</td>
+<td align="right">503</td>
+</tr>
+<tr class="even">
+<td>2 day</td>
+<td align="right">44</td>
+<td align="right">135</td>
+<td align="right">437</td>
+</tr>
+<tr class="odd">
+<td>10 days</td>
+<td align="right">66</td>
+<td align="right">155</td>
+<td align="right">369</td>
+</tr>
+<tr class="even">
+<td>200 days</td>
+<td align="right">77</td>
+<td align="right">162</td>
+<td align="right">332</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div id="building-up-with-covariates." class="section level2">
+<h2>Building up with covariates.</h2>
+<p>Does the daily intakes of iodine and bread differ between the sexes? A quick boxplot of the raw intakes shows that it looks like it does.</p>
+<p><img src="Exposure_files/figure-html/quickplotsex-1.png" width="672" /></p>
+<p>So how can we take this into account, and how does sex really matter? If we only include sex into the model, there are in fact three ways in which it could enter: * As a fixed effect, i.e. that males and females have different mean log daily intakes. * As structuring the random effects, i.e. that males differ between individuals in a different ways than females. * As structuring the residuals, i.e. that males have a different day-to-day variance in intakes than females.</p>
+<p>Below shows how to make these changes to fit a MCMCglmm model.</p>
+<pre class="r"><code>model2a &lt;- MCMCglmm(log(iodine_woS)~sex,random=~ind,data=dataNK3)
+model2b &lt;- MCMCglmm(log(iodine_woS)~sex,random=~idh(at.level(sex,1)):ind+idh(at.level(sex,2)):ind,data=dataNK3)
+model2c &lt;- MCMCglmm(log(iodine_woS)~sex,random=~idh(at.level(sex,1)):ind+idh(at.level(sex,2)):ind,
+                    rcov=~idh(at.level(sex,1)):units+idh(at.level(sex,2)):units,data=dataNK3)</code></pre>
+<p>When looking at the summary of this last model with all possible structuring by sex, we see that males have a higher intake overall. The fixed effect <code>sexmale</code> listed in under the heading <code>Location effects</code> is approximately 0.3. This means that on a log scale males have a mean log intake 0.3 higher than females, and since this is on the log scale males have about 34 percent higher intakes of iodine.</p>
+<pre class="r"><code>summary(model2c)</code></pre>
+<pre><code>## 
+##  Iterations = 3001:12991
+##  Thinning interval  = 10
+##  Sample size  = 1000 
+## 
+##  DIC: 8792.604 
+## 
+##  G-structure:  ~idh(at.level(sex, 1)):ind
+## 
+##                      post.mean l-95% CI u-95% CI eff.samp
+## at.level(sex, 1).ind    0.1492  0.09924   0.1929    374.5
+## 
+##                ~idh(at.level(sex, 2)):ind
+## 
+##                      post.mean l-95% CI u-95% CI eff.samp
+## at.level(sex, 2).ind    0.1896   0.1438   0.2485    509.2
+## 
+##  R-structure:  ~idh(at.level(sex, 1)):units
+## 
+##                        post.mean l-95% CI u-95% CI eff.samp
+## at.level(sex, 1).units    0.5547   0.5031   0.6002    613.3
+## 
+##                ~idh(at.level(sex, 2)):units
+## 
+##                        post.mean l-95% CI u-95% CI eff.samp
+## at.level(sex, 2).units     0.585   0.5369    0.639    735.3
+## 
+##  Location effects: log(iodine_woS) ~ sex 
+## 
+##             post.mean l-95% CI u-95% CI eff.samp  pMCMC    
+## (Intercept)    4.6538   4.6091   4.6989     1000 &lt;0.001 ***
+## sexmale        0.2915   0.2237   0.3517     1000 &lt;0.001 ***
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
+<p>The other estimated parameters indicate that not only do males have a higher iodine intake than females on average, but they also have a larger degree of variability between individuals, and a slight indication that the variance within individuals is also higher for males. Plotting the estimated means and variance also show this;</p>
+<p><img src="Exposure_files/figure-html/unnamed-chunk-2-1.png" width="672" /></p>
 </div>
 
 
@@ -338,6 +500,23 @@ $(document).ready(function () {
 
 
 </script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open')
+  });
+});
+</script>
+
+<!-- code folding -->
+
 
 <!-- dynamically load mathjax for compatibility with self-contained -->
 <script>
