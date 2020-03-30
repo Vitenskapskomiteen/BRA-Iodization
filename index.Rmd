@@ -1,11 +1,11 @@
 ---
-title: "Welcome""
+title: "Welcome"
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-Here we can probably add some links to the tabs or the report or something. Perhaps even post som contact info?
+This page seeks to demonstrate the models used to estimate the impact of iodization of salt as reported in the Norwegian Scientific Committee of food and the environment 2020.
 
 
