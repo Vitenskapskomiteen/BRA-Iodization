@@ -1,12 +1,14 @@
-name: "Exsposura"
+name: "Exposura"
 output_dir: "docs"
 navbar:
   title: "Risk- benefit-assessment of Iodization"
   left:
     - text: "Home"
       href: index.html
-    - text: "Some explanation"
+    - text: "First steps - a univariate model"
       href: Exposure.html
+    - text: "A full multivariate model"
+      href: Exposure2.html
 output:
   html_document:
     theme: cosmo

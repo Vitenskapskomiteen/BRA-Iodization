@@ -2,9 +2,6 @@
 title: "Exposure"
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
 
 ## Risk benefit assessment of iodization of salt in Norway.
 
@@ -20,7 +17,7 @@ Some basic understanding of the functioning of R is needed to follow this docume
 To perform this analysis in `R`, a few packages needs to be installed, minimally the package `MCMCglmm`. 
 
 
-```{r readdata, echo = FALSE,results='hide'}
+```{r readdata, echo = FALSE,results='hide',messages=FALSE}
 library(MCMCglmm)
 load('C:/Users/JSTA/Documents/R_workingDir/Gits/ExposureEst/dataforweb.RData')
 ```
@@ -106,12 +103,12 @@ legend('topright',fill=c('black','grey'),legend=c('OIMS','Simulated'))
 This figure shows a smoothed distribution of the calculated observed individual means (OIMs) and simulated intakes for the same number of individuals over 2 days using the fitted model. 
 
 ### Getting long-term intake.
-The simple model fitted can be used to simulate long-term intake, i.e. over a large number of days (remember that the model is fitted to, and can be used to simulate daily intakes, but we want a mean of many). The figure below shows three distributions of intakes, simulating 10 000 individual means using 1,2,10 and 200 days.
+The simple model fitted can be used to simulate long-term intake, i.e. over a large number of days (remember that the model is fitted to, and can be used to simulate daily intakes, but we want a mean of many). The figure below shows three distributions of intakes, simulating 10 000 individual means using 1,2,10 and 200 days. This is not the population mean, but the distribution of 10 000 individual means (I know, means can be confusing when we're in need of the means of many individuals, but also in the population mean of the means of individuals). 
 
 ```{r compnDays, cache =TRUE}
 sim_days <- sapply(c(1,2,10,200),function(ii){drawIod(model1,n_ind=1e4,n_days=ii)});
-plot(density(sim_days[,1],from=0),xlim=c(0,800),ylim=c(0,0.01),main='Intakes over 1, 2, 10 and 200 days',yaxt='n',xlab='Mean daily iodine intake [µg]')
-for (ii in 2:4){lines(density(sim_days[,ii],from=0),col=rgb(ii/8,ii/8,ii/8))}
+plot(density(sim_days[,1],from=0),xlim=c(0,800),ylim=c(0,0.01),main='Mean individual intakes over n = 1, 2, 10 and 200 days',yaxt='n',xlab='Mean daily iodine intake [µg]',lwd=2)
+for (ii in 2:4){lines(density(sim_days[,ii],from=0),col=rgb(ii/8,ii/8,ii/8),lwd=2)}
 legend('topright',legend=c('1 day','2 days','10 days','200 days'),fill=sapply(1:4,function(ii){rgb(ii/8,ii/8,ii/8)}))
 ```
 
@@ -127,7 +124,7 @@ knitr::kable(out)
 
 
 ## Building up with covariates.
-Does the daily intakes of iodine and bread differ between the sexes? A quick boxplot of the raw intakes shows that it looks like it does.
+Does the daily intakes of iodine and bread differ between the sexes? A quick boxplot of the raw daily intakes shows that it looks like it does.
 
 
 ```{r quickplotsex,echo=FALSE}
@@ -136,18 +133,18 @@ boxplot(iodine_woS~sex,data=dataNK3,log='y',ylab='daily iodine intakes [mg]')
 
 ```
 
-So how can we take this into account, and how does sex really matter? If we only include sex into the model, there are in fact three ways in which it could enter:
+So how can we take sex into account, and how does sex really matter? If we only include sex into the model, there are in fact three ways in which it could enter:
 * As a fixed effect, i.e. that males and females have different mean log daily intakes. 
 * As structuring the random effects, i.e. that males differ between individuals in a different ways than females.
 * As structuring the residuals, i.e. that males have a different day-to-day variance in intakes than females. 
 
-Below shows how to make these changes to fit a MCMCglmm model. 
+Below shows how to make these changes to fit a MCMCglmm model, first only adding a fixed effect (`model2a`), then a fixed effect and random effects that can differ between males and females (`model2b`) and finally a model where the residuals (day to day variation) also differs between the sexes (`model2c`).
 
 ```{r fitSex,results='hide',cache=TRUE}
 model2a <- MCMCglmm(log(iodine_woS)~sex,random=~ind,data=dataNK3)
-model2b <- MCMCglmm(log(iodine_woS)~sex,random=~idh(at.level(sex,1)):ind+idh(at.level(sex,2)):ind,data=dataNK3)
-model2c <- MCMCglmm(log(iodine_woS)~sex,random=~idh(at.level(sex,1)):ind+idh(at.level(sex,2)):ind,
-                    rcov=~idh(at.level(sex,1)):units+idh(at.level(sex,2)):units,data=dataNK3)
+model2b <- MCMCglmm(log(iodine_woS)~sex,random=~idh(sex):ind,data=dataNK3)
+model2c <- MCMCglmm(log(iodine_woS)~sex,random=~idh(sex):ind,
+                    rcov=~idh(sex):units,data=dataNK3)
 ```
 
 When looking at the summary of this last model with all possible structuring by sex, we see that males have a higher intake overall. The fixed effect `sexmale` listed in under the heading `Location effects` is approximately 0.3. This means that on a log scale males have a mean log intake 0.3 higher than females, and since this is on the log scale males have about `r round((exp(mean(model2c$Sol[,2]))-1)*100)` percent higher intakes of iodine. 
@@ -156,7 +153,7 @@ When looking at the summary of this last model with all possible structuring by 
 summary(model2c)
 ```
 
-The other estimated parameters indicate that not only do males have a higher iodine intake than females on average, but they also have a larger degree of variability between individuals, and a slight indication that the variance within individuals is also higher for males. Plotting the estimated means and variance also show this;
+The other estimated parameters indicate that not only do males have a higher iodine intake than females on average, but they also have a larger degree of variability between individuals (`sexmale.ind` has a posterior mean `post.mean` of about 0.19, wherease for females it is about 0.15). There is also a slight indication that the variance within individuals (`sexmale.units` vs `sexfemale.units`) is also higher for males. Plotting the estimated means and variance also show this;
 
 ```{r echo=FALSE, results='hide'}
 cMal <- rgb(0.04,0.04,0.8,0.6)
@@ -172,4 +169,23 @@ lines(density(model2c$VCV[,1]),col=cFem,lwd=2)
 
 plot(density(model2c$VCV[,4]),xlim=c(0,1),main='Variance within individuals',yaxt='n',ylim=c(0,20),col=cMal,xlab='Variance',ylab='',lwd=2)
 lines(density(model2c$VCV[,3]),col=cFem,lwd=2)
+```
+
+To arrive at long-term intakes from this mode complex model with differences between the sexes, a new function to sample the parameters and draw both the individual level random effects and day-to-day variations must be generated. 
+
+## The full model for iodine intake.
+The model used to estimate the long-term intake also included age as a fixed effect as well as level of education. This allows us to correct (to a certain degree) for the unrepresentativeness of the underlying data. By quantifying how much higher/lower the intake is for highly educated individuals, we can make a simulation function that corrects for this by drawing intakes for a target population more similar to the real Norwegian population. Similarly for age.
+
+The full univariate model we used for this project was;
+
+```{r fullmodelUni,echo=TRUE, results='hide'}
+model3 <- MCMCglmm(log(iodine_woS) ~ sex + age + educ,
+                   random = ~idh(sex):ind,
+                   rcov  = ~idh(sex):units, 
+                   data = dataNK3)
+```
+
+And the summary;
+```{r summaryfullmod}
+summary(model3)
 ```
