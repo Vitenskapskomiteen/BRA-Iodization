@@ -1,0 +1,13 @@
+---
+title: "Exposure - multivariate and complex"
+---
+
+## Multivariate models of intake
+We were tasked with estimating the impact on iodine intake of selected measures. Iodization of salt could either be done on regularly used salt in the homes of individuals (table salt) or in salt used in the industrial production of bread. 
+
+To get an appropriate estimate of the iodization of bread salt, we wanted to investigate if, and possibly how, the intake of iodine correlates with intake of bread. If those who have low levels of iodine intakes also have low levels of consumptions of bread, iodization would reach the wrong part of the population. On the other hand, if those with low intakes of bread have a higher intake of iodine, iodization measures will be very efficient as those who eat bread also need the iodine the most.
+
+A model used to predict more than one variable at a time is (dam dam daaa) multivariate. So a multivariate model in our case is a model that attempts to predict the daily intake of iodine *and* bread (or salt in bread). Similar to the univariate model of iodine intake alone we can include various fixed effects, but for a multivariate model we also need to make assumptiosn on how we think the possible correlation between bread and iodine intake actually occurs.
+
+## Prerequisites
+Same packages as for the univariate case. To code the functions necessary for sampling a multivariate model is slightly more complicated.
